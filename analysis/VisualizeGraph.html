@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<head>
+	<meta charset="utf-8">
+	<meta name="description" content="Trabajo de fin de master - Universidad Internacional de La Rioja">
+	<meta name="author" content="Sandra Fresnillo">
+	<title>Grafo de conexiones</title>
+	<style>
+	.link {
+	  stroke: #ccc;
+	  stroke-opacity: 0.5
+	}
+
+	.label {
+	  pointer-events: none;
+	  font: 9px arial;
+	  fill: #7b7e7b;
+	}
+
+	</style>
+</head>
+<body>
+<script src="https://d3js.org/d3.v4.min.js"></script>
+<script>
+
+var width = 960, height = 500
+
+var svg = d3.select("body")
+	.append("svg")
+	.attr("width", width)
+	.attr("height", height);
+
+var simulation = d3.forceSimulation()
+	.force("center", d3.forceCenter(width / 2, height / 2))
+	.force("charge", d3.forceManyBody())
+	.force("link", d3.forceLink().id(function(d) { return d.id; }).distance(300));
+
+d3.json("grafoCorrea.json", function(error, json) {
+	if (error) throw error;
+
+	simulation.nodes(json.nodes);
+	  
+	simulation
+		.force("link")
+		.links(json.links);
+
+	var link = svg.selectAll(".link")
+			.data(json.links)
+			.enter().append("line")
+			.attr("class", "link")
+			.attr("stroke-width", function(d) { if (d.weight<1) return 1; else return Math.sqrt(d.weight); });
+
+	var node = svg.selectAll(".node")
+		.data(json.nodes)
+		.enter().append("g");
+		
+	node.selectAll("circle")
+		.data(json.nodes)
+		.enter()
+		.append("circle")
+		.attr("r", 7)
+		.attr("fill", "#59c159")
+		.call(d3.drag()
+			.on("start", dragstarted)
+			.on("drag", dragged)
+			.on("end", dragended))
+			.on("mouseover", function(d) { mouseover_node(d); })
+			.on("mouseout", function(d) { mouseout_node(d) });
+
+	var text=node.append("text")
+		.attr("dx", 9)
+		.attr("dy", 9)
+		.attr("class", "label")
+		.text(function(d) { return d.id });
+
+	simulation.on("tick", function() {
+		link.attr("x1", function(d) { return d.source.x; })
+			.attr("y1", function(d) { return d.source.y; })
+			.attr("x2", function(d) { return d.target.x; })
+			.attr("y2", function(d) { return d.target.y; });
+
+		node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });		
+	});
+	  
+	function dragstarted(d) {
+		if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+		d.fx = d.x;
+		d.fy = d.y;
+	}
+
+	function dragged(d) {
+		d.fx = d3.event.x;
+		d.fy = d3.event.y;
+	}
+
+	function dragended(d) {
+		if (!d3.event.active) simulation.alphaTarget(0);
+		d.fx = null;
+		d.fy = null;
+	}
+		
+	function mouseover_node(z){ 
+		var neighbors = {};
+		neighbors[z.index] = true;
+
+		link.filter(function(d){
+			if (d.source == z) {
+				neighbors[d.target.index] = true
+				return true
+			} else if (d.target == z) {
+				neighbors[d.source.index] = true
+				return true
+			} else {
+				return false
+			}
+		})
+		.style("stroke-opacity", 1);
+	};
+
+	function mouseout_node(z){ 
+		link.style("stroke-opacity", 0.5);
+	};
+});
+
+</script>
